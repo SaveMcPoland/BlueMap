@@ -88,7 +88,7 @@ public class SpongePlugin implements ServerInterface {
 		this.onlinePlayerMap = new ConcurrentHashMap<>();
 		this.onlinePlayerList = Collections.synchronizedList(new ArrayList<>());
 		
-		MinecraftVersion version = MinecraftVersion.MC_1_12;
+		MinecraftVersion version = MinecraftVersion.MC_1_16;
 		try {
 			version = MinecraftVersion.fromVersionString(Sponge.getPlatform().getMinecraftVersion().getName());
 		} catch (IllegalArgumentException e) {
