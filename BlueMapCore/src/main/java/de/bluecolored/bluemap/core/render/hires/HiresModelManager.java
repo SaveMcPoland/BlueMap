@@ -48,6 +48,9 @@ import de.bluecolored.bluemap.core.resourcepack.ResourcePack;
 import de.bluecolored.bluemap.core.util.AABB;
 import de.bluecolored.bluemap.core.util.FileUtils;
 
+import com.nixxcode.jvmbrotli.enc.Encoder;
+import com.nixxcode.jvmbrotli.enc.BrotliOutputStream;
+
 public class HiresModelManager {
 
 	private Path fileRoot;
@@ -56,20 +59,22 @@ public class HiresModelManager {
 	private Vector2i tileSize;
 	private Vector2i gridOrigin;
 	
-	private boolean useGzip;
+	private int compressionType;
+	private int compressionLevel;
 	
 	public HiresModelManager(Path fileRoot, ResourcePack resourcePack, RenderSettings renderSettings, Vector2i tileSize) {
-		this(fileRoot, new HiresModelRenderer(resourcePack, renderSettings), tileSize, new Vector2i(2, 2), renderSettings.useGzipCompression());
+		this(fileRoot, new HiresModelRenderer(resourcePack, renderSettings), tileSize, new Vector2i(2, 2), renderSettings.getCompressionType(), renderSettings.getCompressionLevel());
 	}
 	
-	public HiresModelManager(Path fileRoot, HiresModelRenderer renderer, Vector2i tileSize, Vector2i gridOrigin, boolean useGzip) {
+	public HiresModelManager(Path fileRoot, HiresModelRenderer renderer, Vector2i tileSize, Vector2i gridOrigin, int compressionType, int compressionLevel) {
 		this.fileRoot = fileRoot;
 		this.renderer = renderer;
 		
 		this.tileSize = tileSize;
 		this.gridOrigin = gridOrigin;
 		
-		this.useGzip = useGzip;
+		this.compressionType = compressionType;
+		this.compressionLevel = compressionLevel;
 	}
 	
 	/**
@@ -87,7 +92,7 @@ public class HiresModelManager {
 	}
 	
 	private void save(HiresModel model, String modelJson){
-		File file = getFile(model.getTile(), useGzip);
+		File file = getFile(model.getTile(), compressionType);
 		
 		try {
 			if (!file.exists()){
@@ -96,7 +101,17 @@ public class HiresModelManager {
 			}
 	
 			OutputStream os = new FileOutputStream(file);
-			if (useGzip) os = new GZIPOutputStream(os);
+			switch (compressionType) {
+				case 1:
+					os = new GZIPOutputStream(os);
+					break;
+				case 2:
+					Encoder.Parameters params = new Encoder.Parameters().setQuality(compressionLevel);
+					os = new BrotliOutputStream(os, params);
+				default:
+					break;
+			}
+			
 			OutputStreamWriter osw = new OutputStreamWriter(os, StandardCharsets.UTF_8);
 			try (
 				PrintWriter pw = new PrintWriter(osw);
@@ -185,8 +200,8 @@ public class HiresModelManager {
 	/**
 	 * Returns the file for a tile
 	 */
-	public File getFile(Vector2i tilePos, boolean gzip){
-		return FileUtils.coordsToFile(fileRoot, tilePos, "json" + (gzip ? ".gz" : ""));
+	public File getFile(Vector2i tilePos, int compressionType){
+		return FileUtils.coordsToFile(fileRoot, tilePos, "json" + (compressionType == 0 ? "" : (compressionType == 1 ? ".gz" : ".br")));
 	}
 	
 }
