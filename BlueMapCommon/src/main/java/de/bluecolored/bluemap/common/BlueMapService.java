@@ -207,7 +207,7 @@ public class BlueMapService {
 					getRenderConfig().getWebRoot().toPath().resolve("data").resolve(id).resolve("lowres"), 
 					new Vector2i(mapConfig.getLowresPointsPerLowresTile(), mapConfig.getLowresPointsPerLowresTile()),
 					new Vector2i(mapConfig.getLowresPointsPerHiresTile(), mapConfig.getLowresPointsPerHiresTile()),
-					mapConfig.getCompressionType(), mapConfig.getCompressionLevel()
+					mapConfig.getCompressionType()
 					);
 			
 			TileRenderer tileRenderer = new TileRenderer(hiresModelManager, lowresModelManager);

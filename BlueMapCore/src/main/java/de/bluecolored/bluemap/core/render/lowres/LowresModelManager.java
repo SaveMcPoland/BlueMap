@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.io.IOUtils;
 
@@ -50,8 +49,7 @@ import de.bluecolored.bluemap.core.logger.Logger;
 import de.bluecolored.bluemap.core.render.hires.HiresModel;
 import de.bluecolored.bluemap.core.threejs.BufferGeometry;
 import de.bluecolored.bluemap.core.util.FileUtils;
-
-import com.nixxcode.jvmbrotli.dec.BrotliInputStream;
+import de.bluecolored.bluemap.core.CompressionConfig;
 
 public class LowresModelManager {
 	
@@ -62,10 +60,9 @@ public class LowresModelManager {
 	
 	private Map<File, CachedModel> models;
 	
-	private int compressionType;
-	private int compressionLevel;
+	private CompressionConfig compressionType;
 		
-	public LowresModelManager(Path fileRoot, Vector2i gridSize, Vector2i pointsPerHiresTile, int compressionType, int compressionLevel) {
+	public LowresModelManager(Path fileRoot, Vector2i gridSize, Vector2i pointsPerHiresTile, CompressionConfig compressionType) {
 		this.fileRoot = fileRoot;
 		
 		this.gridSize = gridSize;
@@ -74,7 +71,6 @@ public class LowresModelManager {
 		models = new ConcurrentHashMap<>();
 		
 		this.compressionType = compressionType;
-		this.compressionLevel = compressionLevel;
 	}
 	
 	/**
@@ -175,13 +171,13 @@ public class LowresModelManager {
 	/**
 	 * Returns the file for a tile
 	 */
-	public File getFile(Vector2i tile, int compressionType){
-		return FileUtils.coordsToFile(fileRoot, tile, "json" + (compressionType == 0 ? "" : (compressionType == 1 ? ".gz" : ".br")));
+	public File getFile(Vector2i tile, String fileExtension){
+		return FileUtils.coordsToFile(fileRoot, tile, fileExtension);
 	}
 	
 	private LowresModel getModel(UUID world, Vector2i tile) {
 		
-		File modelFile = getFile(tile, compressionType);
+		File modelFile = getFile(tile, compressionType.getFileExtension());
 		CachedModel model = models.get(modelFile);
 
 		if (model == null){
@@ -191,17 +187,8 @@ public class LowresModelManager {
 					
 					if (modelFile.exists()){
 						try (FileInputStream fis = new FileInputStream(modelFile)) {
-							InputStream is = fis;
-							switch (compressionType) {
-								case 1:
-									is = new GZIPInputStream(is);
-									break;
-								case 2:
-									is = new BrotliInputStream(is);
-								default:
-									break;
-							}
-							
+							InputStream is = compressionType.getInputStream(fis);
+														
 							String json = IOUtils.toString(is, StandardCharsets.UTF_8);	
 							
 							model = new CachedModel(world, tile, BufferGeometry.fromJson(json));
@@ -260,10 +247,10 @@ public class LowresModelManager {
 	}
 	
 	private synchronized void saveAndRemoveModel(CachedModel model) {
-		File modelFile = getFile(model.getTile(), compressionType);
+		File modelFile = getFile(model.getTile(), compressionType.getFileExtension());
 		models.remove(modelFile);
 		try {
-			model.save(modelFile, false, compressionType, compressionLevel);
+			model.save(modelFile, false, compressionType);
 			//logger.logDebug("Saved and unloaded lowres tile: " + model.getTile());
 		} catch (IOException ex) {
 			Logger.global.logError("Failed to save and unload lowres-model: " + modelFile, ex);
@@ -271,9 +258,9 @@ public class LowresModelManager {
 	}
 	
 	private void saveModel(CachedModel model) {
-		File modelFile = getFile(model.getTile(), compressionType);
+		File modelFile = getFile(model.getTile(), compressionType.getFileExtension());
 		try {
-			model.save(modelFile, false, compressionType, compressionLevel);
+			model.save(modelFile, false, compressionType);
 			//logger.logDebug("Saved lowres tile: " + model.getTile());
 		} catch (IOException ex) {
 			Logger.global.logError("Failed to save lowres-model: " + modelFile, ex);

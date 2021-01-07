@@ -38,7 +38,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.zip.GZIPOutputStream;
 
 import com.flowpowered.math.vector.Vector2i;
 import com.flowpowered.math.vector.Vector3f;
@@ -47,9 +46,8 @@ import de.bluecolored.bluemap.core.threejs.BufferGeometry;
 import de.bluecolored.bluemap.core.util.FileUtils;
 import de.bluecolored.bluemap.core.util.MathUtils;
 import de.bluecolored.bluemap.core.util.ModelUtils;
+import de.bluecolored.bluemap.core.CompressionConfig;
 
-import com.nixxcode.jvmbrotli.enc.Encoder;
-import com.nixxcode.jvmbrotli.enc.BrotliOutputStream;
 
 public class LowresModel {
 	
@@ -100,7 +98,7 @@ public class LowresModel {
 	 * Saves this model to its file
 	 * @param force if this is false, the model is only saved if it has any changes
 	 */
-	public void save(File file, boolean force, int compressionType, int compressionLevel) throws IOException {
+	public void save(File file, boolean force, CompressionConfig compressionType) throws IOException {
 		if (!force && !hasUnsavedChanges) return;
 		this.hasUnsavedChanges = false;
 
@@ -126,17 +124,7 @@ public class LowresModel {
 				throw new IOException("Failed to get write-access to file: " + file, e);
 			}
 
-			OutputStream os = new FileOutputStream(file);
-			switch (compressionType) {
-				case 1:
-					os = new GZIPOutputStream(os);
-					break;
-				case 2:
-					Encoder.Parameters params = new Encoder.Parameters().setQuality(compressionLevel);
-					os = new BrotliOutputStream(os, params);
-				default:
-					break;
-			}
+			OutputStream os = compressionType.getOutputStream(new FileOutputStream(file));
 
 			OutputStreamWriter osw = new OutputStreamWriter(os, StandardCharsets.UTF_8);
 			try (

@@ -35,7 +35,6 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.zip.GZIPOutputStream;
 
 import com.flowpowered.math.vector.Vector2i;
 import com.flowpowered.math.vector.Vector3d;
@@ -47,9 +46,7 @@ import de.bluecolored.bluemap.core.render.WorldTile;
 import de.bluecolored.bluemap.core.resourcepack.ResourcePack;
 import de.bluecolored.bluemap.core.util.AABB;
 import de.bluecolored.bluemap.core.util.FileUtils;
-
-import com.nixxcode.jvmbrotli.enc.Encoder;
-import com.nixxcode.jvmbrotli.enc.BrotliOutputStream;
+import de.bluecolored.bluemap.core.CompressionConfig;
 
 public class HiresModelManager {
 
@@ -59,14 +56,13 @@ public class HiresModelManager {
 	private Vector2i tileSize;
 	private Vector2i gridOrigin;
 	
-	private int compressionType;
-	private int compressionLevel;
+	private CompressionConfig compressionType;
 	
 	public HiresModelManager(Path fileRoot, ResourcePack resourcePack, RenderSettings renderSettings, Vector2i tileSize) {
-		this(fileRoot, new HiresModelRenderer(resourcePack, renderSettings), tileSize, new Vector2i(2, 2), renderSettings.getCompressionType(), renderSettings.getCompressionLevel());
+		this(fileRoot, new HiresModelRenderer(resourcePack, renderSettings), tileSize, new Vector2i(2, 2), renderSettings.getCompressionType());
 	}
 	
-	public HiresModelManager(Path fileRoot, HiresModelRenderer renderer, Vector2i tileSize, Vector2i gridOrigin, int compressionType, int compressionLevel) {
+	public HiresModelManager(Path fileRoot, HiresModelRenderer renderer, Vector2i tileSize, Vector2i gridOrigin, CompressionConfig compressionType) {
 		this.fileRoot = fileRoot;
 		this.renderer = renderer;
 		
@@ -74,7 +70,6 @@ public class HiresModelManager {
 		this.gridOrigin = gridOrigin;
 		
 		this.compressionType = compressionType;
-		this.compressionLevel = compressionLevel;
 	}
 	
 	/**
@@ -92,7 +87,7 @@ public class HiresModelManager {
 	}
 	
 	private void save(HiresModel model, String modelJson){
-		File file = getFile(model.getTile(), compressionType);
+		File file = getFile(model.getTile(), compressionType.getFileExtension());
 		
 		try {
 			if (!file.exists()){
@@ -100,17 +95,7 @@ public class HiresModelManager {
 				file.createNewFile();
 			}
 	
-			OutputStream os = new FileOutputStream(file);
-			switch (compressionType) {
-				case 1:
-					os = new GZIPOutputStream(os);
-					break;
-				case 2:
-					Encoder.Parameters params = new Encoder.Parameters().setQuality(compressionLevel);
-					os = new BrotliOutputStream(os, params);
-				default:
-					break;
-			}
+			OutputStream os = compressionType.getOutputStream(new FileOutputStream(file));
 			
 			OutputStreamWriter osw = new OutputStreamWriter(os, StandardCharsets.UTF_8);
 			try (
@@ -200,8 +185,8 @@ public class HiresModelManager {
 	/**
 	 * Returns the file for a tile
 	 */
-	public File getFile(Vector2i tilePos, int compressionType){
-		return FileUtils.coordsToFile(fileRoot, tilePos, "json" + (compressionType == 0 ? "" : (compressionType == 1 ? ".gz" : ".br")));
+	public File getFile(Vector2i tilePos, String fileExtension){
+		return FileUtils.coordsToFile(fileRoot, tilePos, fileExtension);
 	}
 	
 }
